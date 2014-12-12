@@ -1,14 +1,14 @@
 package eu.test.json_subclass;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -18,61 +18,71 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class App {
 	public static void main(String[] args) {
-		final String outputFile = "output.json";
+		final String demoFile = "demo.json";
 
 		List<Animal> myList = new ArrayList<Animal>();
 		myList.add(new Lion("Simba"));
 		// myList.add(new Lion("Nala"));
 		myList.add(new Elephant("Dumbo"));
 		// myList.add(new Elephant("Lucy"));
+
+		// Serialization/deserialization using wrapper list
 		AnimalList wrapperWrite = new AnimalList(myList);
 
-		File jsonDocument = null;
-		try {
-			ObjectMapper mapper = new ObjectMapper();
-			jsonDocument = new File(outputFile);
+		ObjectMapper mapper = new ObjectMapper();
+		String outputJson = null;
 
+		try {
 			// Test writing using wrapper
-			mapper.writerWithDefaultPrettyPrinter().writeValue(jsonDocument,
-					wrapperWrite);
-			System.out.println("Written to file: "
-					+ jsonDocument.getAbsolutePath() + "\ndata: "
-					+ wrapperWrite);
+			outputJson = mapper.writeValueAsString(wrapperWrite);
+			System.out.println("Writing using wrapper object:\nJSON: "
+					+ outputJson);
 
 			// Test reading using wrapper
-			AnimalList wrapperRead = mapper.readValue(new FileInputStream(
-					jsonDocument), AnimalList.class);
-			System.out
-					.println("Read from file: "
-							+ jsonDocument.getAbsolutePath() + "\ndata: "
-							+ wrapperRead);
+			AnimalList wrapperRead = mapper.readValue(outputJson,
+					AnimalList.class);
+			System.out.println("Reading using wrapper object:\nObject: "
+					+ wrapperRead);
 
-			// Test reading using raw list
+			JavaType listType = mapper.getTypeFactory()
+					.constructCollectionType(List.class, Animal.class);
+
+			// Test reading using generic list
 			List<Animal> jsonList = mapper.readValue(new FileInputStream(
-					"demo.json"), new TypeReference<List<Animal>>() {
-			});
-			System.out.println("Read from demo.json \ndata: " + jsonList);
+					demoFile), listType);
+			System.out
+					.println("Reading using generic list with type:\nObject: "
+							+ jsonList);
 
-			jsonDocument = new File(outputFile);
-			// Test writing using raw list
-			mapper.writerWithDefaultPrettyPrinter().writeValue(jsonDocument,
+			// Test writing using generic list
+			outputJson = mapper.writeValueAsString(jsonList);
+			System.out
+					.println("Writing using generic list without type:\nJSON: "
+							+ outputJson);
+
+			outputJson = mapper.writerWithType(listType).writeValueAsString(
 					jsonList);
-			System.out.println("Written to file: "
-					+ jsonDocument.getAbsolutePath() + "\ndata: "
-					+ jsonList);
+			System.out.println("Writing using generic list with type:\nJSON: "
+					+ outputJson);
+
+			// Test reading using array
+			Animal[] jsonArray = mapper.readValue(
+					new FileInputStream(demoFile), Animal[].class);
+			System.out.println("Reading using array:\nObject: "
+					+ Arrays.toString(jsonArray));
+
+			// Test writing using array
+			outputJson = mapper.writeValueAsString(jsonArray);
+			System.out.println("Writing using array:\nJSON: " + outputJson);
 
 		} catch (JsonGenerationException e) {
 			System.out.println("Could not generate JSON: " + e.getMessage());
 		} catch (JsonMappingException e) {
 			System.out.println("Invalid JSON Mapping: " + e.getMessage());
 		} catch (FileNotFoundException e) {
-			System.out.println("File not found: "
-					+ jsonDocument.getAbsolutePath());
+			System.out.println("File not found: " + demoFile);
 		} catch (IOException e) {
 			System.out.println("File I/O error: ");
-		} finally {
-			if (jsonDocument != null)
-				jsonDocument.delete();
 		}
 	}
 }
